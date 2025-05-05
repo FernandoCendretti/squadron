@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  # API (NestJS)
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    image: nest-api:latest
+    container_name: nest-api
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://user:password@postgres:5432/mydatabase
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - ./api:/usr/src/app
+    depends_on:
+      - postgres
+      - redis
+    command: npm run start:dev
+
+  # Worker (Go)
+  worker:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    image: go-worker:latest
+    container_name: go-worker
+    environment:
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - ./worker:/usr/src/app
+    depends_on:
+      - redis
+    command: go run main.go
+
+  # Postgres
+  postgres:
+    image: postgres:13
+    container_name: postgres
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: mydatabase
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  # Redis
+  redis:
+    image: redis:alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+
+volumes:
+  postgres-data:
+    driver: local
